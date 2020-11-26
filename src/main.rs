@@ -1,52 +1,33 @@
-use iced::{button, Button, Element, Sandbox, Text};
-use kira::{
-	instance::InstanceId,
-	instance::InstanceSettings,
-	manager::AudioManager,
-	parameter::Tween,
-	sound::SoundMetadata,
-	sound::SoundSettings,
-	sound::{Sound, SoundId},
-	Tempo,
-};
+mod demo_select;
+mod drum_fill_demo;
+
+use std::error::Error;
+
+use demo_select::DemoSelect;
+use drum_fill_demo::DrumFillDemo;
+use iced::{Sandbox, Text};
 
 #[derive(Debug, Copy, Clone)]
 enum Message {
-	StartLoop,
-	StopLoop(InstanceId),
+	DemoSelect(demo_select::Message),
+	DrumFillDemo(drum_fill_demo::Message),
+}
+
+enum Screen {
+	DemoSelect(DemoSelect),
+	DrumFillDemo(DrumFillDemo),
 }
 
 struct App {
-	audio_manager: AudioManager,
-	loop_sound_id: SoundId,
-	loop_instance_id: Option<InstanceId>,
-	start_loop_button_state: button::State,
+	screen: Screen,
 }
 
 impl Sandbox for App {
 	type Message = Message;
 
 	fn new() -> Self {
-		let mut audio_manager = AudioManager::new(Default::default()).unwrap();
-		let loop_sound_id = audio_manager
-			.add_sound(
-				Sound::from_file(
-					std::env::current_dir().unwrap().join("assets/loop.ogg"),
-					SoundSettings {
-						metadata: SoundMetadata {
-							semantic_duration: Some(Tempo(102.0).beats_to_seconds(16.0)),
-						},
-						..Default::default()
-					},
-				)
-				.unwrap(),
-			)
-			.unwrap();
 		Self {
-			audio_manager,
-			loop_sound_id,
-			loop_instance_id: None,
-			start_loop_button_state: button::State::new(),
+			screen: Screen::DemoSelect(DemoSelect::new()),
 		}
 	}
 
@@ -56,36 +37,30 @@ impl Sandbox for App {
 
 	fn update(&mut self, message: Self::Message) {
 		match message {
-			Message::StartLoop => {
-				self.loop_instance_id = Some(
-					self.audio_manager
-						.play_sound(self.loop_sound_id, InstanceSettings::new().loop_region(..))
-						.unwrap(),
-				);
-			}
-			Message::StopLoop(instance_id) => {
-				self.audio_manager
-					.stop_instance(instance_id, Some(Tween(1.0)))
-					.unwrap();
-				self.loop_instance_id = None;
-			}
+			Message::DemoSelect(message) => match message {
+				demo_select::Message::GoToDrumFillDemo => {
+					self.screen = Screen::DrumFillDemo(DrumFillDemo::new().unwrap());
+				}
+			},
+			Message::DrumFillDemo(message) => match message {
+				drum_fill_demo::Message::GoToDemoSelect => {
+					self.screen = Screen::DemoSelect(DemoSelect::new());
+				}
+			},
 		}
 	}
 
-	fn view(&mut self) -> Element<'_, Self::Message> {
-		match self.loop_instance_id {
-			Some(instance_id) => {
-				Button::new(&mut self.start_loop_button_state, Text::new("Stop loop"))
-					.on_press(Message::StopLoop(instance_id))
-					.into()
+	fn view(&mut self) -> iced::Element<'_, Self::Message> {
+		match &mut self.screen {
+			Screen::DemoSelect(screen) => screen.view().map(|message| Message::DemoSelect(message)),
+			Screen::DrumFillDemo(screen) => {
+				screen.view().map(|message| Message::DrumFillDemo(message))
 			}
-			None => Button::new(&mut self.start_loop_button_state, Text::new("Start loop"))
-				.on_press(Message::StartLoop)
-				.into(),
 		}
 	}
 }
 
-fn main() {
-	App::run(Default::default())
+fn main() -> Result<(), Box<dyn Error>> {
+	App::run(Default::default())?;
+	Ok(())
 }
