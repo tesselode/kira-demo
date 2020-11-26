@@ -5,7 +5,7 @@ use std::error::Error;
 
 use demo_select::DemoSelect;
 use drum_fill_demo::DrumFillDemo;
-use iced::{Sandbox, Text};
+use iced::Sandbox;
 
 #[derive(Debug, Copy, Clone)]
 enum Message {
@@ -45,6 +45,11 @@ impl Sandbox for App {
 			Message::DrumFillDemo(message) => match message {
 				drum_fill_demo::Message::GoToDemoSelect => {
 					self.screen = Screen::DemoSelect(DemoSelect::new());
+				}
+				message => {
+					if let Screen::DrumFillDemo(screen) = &mut self.screen {
+						screen.update(message).unwrap();
+					}
 				}
 			},
 		}

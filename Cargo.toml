@@ -9,6 +9,3 @@ edition = "2018"
 [dependencies]
 iced = "0.2.0"
 kira = {path = "../kira/kira"}
-
-[profile.dev]
-opt-level = 3
