@@ -15,6 +15,7 @@ use kira::{
 pub enum Message {
 	GoToDemoSelect,
 	Play,
+	Stop,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -90,7 +91,7 @@ impl DrumFillDemo {
 
 	fn start_loop(&mut self) -> Result<(), Box<dyn Error>> {
 		self.playback_state = PlaybackState::Looping(1);
-		self.audio_manager.start_sequence({
+		self.sequence_id = Some(self.audio_manager.start_sequence({
 			let mut sequence = Sequence::new();
 			sequence.wait_for_interval(1.0);
 			sequence.start_loop();
@@ -104,8 +105,19 @@ impl DrumFillDemo {
 			sequence.emit_custom_event(AudioEvent::Beat(4));
 			sequence.wait(Duration::Beats(1.0));
 			sequence
-		})?;
+		})?);
 		self.audio_manager.start_metronome()?;
+		Ok(())
+	}
+
+	fn stop(&mut self) -> Result<(), Box<dyn Error>> {
+		if let Some(sequence_id) = self.sequence_id {
+			self.audio_manager
+				.stop_sequence_and_instances(sequence_id, Some(0.01.into()))?;
+			self.audio_manager.stop_metronome()?;
+			self.sequence_id = None;
+			self.playback_state = PlaybackState::Stopped;
+		}
 		Ok(())
 	}
 
@@ -127,6 +139,9 @@ impl DrumFillDemo {
 		match message {
 			Message::Play => {
 				self.start_loop()?;
+			}
+			Message::Stop => {
+				self.stop()?;
 			}
 			_ => {}
 		}
@@ -152,8 +167,18 @@ impl DrumFillDemo {
 						.align_items(Align::Center)
 						.spacing(16)
 						.push(
-							Button::new(&mut self.play_button, Text::new("Play").size(24))
-								.on_press(Message::Play),
+							Button::new(
+								&mut self.play_button,
+								Text::new(match self.playback_state {
+									PlaybackState::Stopped => "Play",
+									PlaybackState::Looping(_) => "Stop",
+								})
+								.size(24),
+							)
+							.on_press(match self.playback_state {
+								PlaybackState::Stopped => Message::Play,
+								PlaybackState::Looping(_) => Message::Stop,
+							}),
 						)
 						.push(Text::new(self.playback_state.to_string()).size(24)),
 				)
