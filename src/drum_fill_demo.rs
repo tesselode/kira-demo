@@ -198,6 +198,35 @@ impl DrumFillDemo {
 	}
 
 	pub fn view(&mut self) -> iced::Element<'_, Message> {
+		let play_button = Button::new(
+			&mut self.play_button,
+			Text::new(match self.playback_state {
+				PlaybackState::Stopped => "Start loop",
+				_ => "Stop",
+			})
+			.size(24),
+		)
+		.on_press(match self.playback_state {
+			PlaybackState::Stopped => Message::StartSequence,
+			_ => Message::Stop,
+		});
+
+		let play_drum_fill_button = {
+			let mut button = Button::new(
+				&mut self.play_drum_fill_button,
+				Text::new("Play drum fill").size(24),
+			);
+			if let PlaybackState::Looping(_) = self.playback_state {
+				button = button.on_press(Message::StartSequence);
+			}
+			button
+		};
+
+		let button_row = Row::new()
+			.spacing(16)
+			.push(play_button)
+			.push(play_drum_fill_button);
+
 		Column::new()
 			.push(
 				Row::new()
@@ -215,34 +244,7 @@ impl DrumFillDemo {
 					Column::new()
 						.align_items(Align::Center)
 						.spacing(16)
-						.push(
-							Row::new()
-								.spacing(16)
-								.push(
-									Button::new(
-										&mut self.play_button,
-										Text::new(match self.playback_state {
-											PlaybackState::Stopped => "Start loop",
-											_ => "Stop",
-										})
-										.size(24),
-									)
-									.on_press(match self.playback_state {
-										PlaybackState::Stopped => Message::StartSequence,
-										_ => Message::Stop,
-									}),
-								)
-								.push({
-									let mut button = Button::new(
-										&mut self.play_drum_fill_button,
-										Text::new("Play drum fill").size(24),
-									);
-									if let PlaybackState::Looping(_) = self.playback_state {
-										button = button.on_press(Message::StartSequence);
-									}
-									button
-								}),
-						)
+						.push(button_row)
 						.push(Text::new(self.playback_state.to_string()).size(24)),
 				)
 				.width(Length::Fill)
