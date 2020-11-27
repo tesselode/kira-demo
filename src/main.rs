@@ -1,14 +1,15 @@
 mod demo_select;
 mod drum_fill_demo;
 
-use std::error::Error;
+use std::{error::Error, time::Duration};
 
 use demo_select::DemoSelect;
 use drum_fill_demo::DrumFillDemo;
-use iced::Sandbox;
+use iced::{executor, Application, Command, Subscription};
 
 #[derive(Debug, Copy, Clone)]
 enum Message {
+	CheckForEvents,
 	DemoSelect(demo_select::Message),
 	DrumFillDemo(drum_fill_demo::Message),
 }
@@ -22,21 +23,32 @@ struct App {
 	screen: Screen,
 }
 
-impl Sandbox for App {
+impl Application for App {
+	type Executor = executor::Default;
 	type Message = Message;
+	type Flags = ();
 
-	fn new() -> Self {
-		Self {
-			screen: Screen::DemoSelect(DemoSelect::new()),
-		}
+	fn new(_: ()) -> (Self, Command<Self::Message>) {
+		(
+			Self {
+				screen: Screen::DemoSelect(DemoSelect::new()),
+			},
+			Command::none(),
+		)
 	}
 
 	fn title(&self) -> String {
 		"Kira demo".into()
 	}
 
-	fn update(&mut self, message: Self::Message) {
+	fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
 		match message {
+			Message::CheckForEvents => match &mut self.screen {
+				Screen::DrumFillDemo(screen) => {
+					screen.check_for_events().unwrap();
+				}
+				_ => {}
+			},
 			Message::DemoSelect(message) => match message {
 				demo_select::Message::GoToDrumFillDemo => {
 					self.screen = Screen::DrumFillDemo(DrumFillDemo::new().unwrap());
@@ -52,6 +64,16 @@ impl Sandbox for App {
 					}
 				}
 			},
+		}
+		Command::none()
+	}
+
+	fn subscription(&self) -> Subscription<Self::Message> {
+		match &self.screen {
+			Screen::DrumFillDemo(_) => {
+				iced::time::every(Duration::from_millis(16)).map(|_| Message::CheckForEvents)
+			}
+			_ => Subscription::none(),
 		}
 	}
 

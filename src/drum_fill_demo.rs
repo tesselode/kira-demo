@@ -26,6 +26,15 @@ pub enum PlaybackState {
 	Looping(usize),
 }
 
+impl PlaybackState {
+	fn to_string(&self) -> String {
+		match self {
+			PlaybackState::Stopped => "Stopped".into(),
+			PlaybackState::Looping(beat) => format!("Beat {}", beat),
+		}
+	}
+}
+
 pub struct DrumFillDemo {
 	audio_manager: AudioManager<AudioEvent>,
 	loop_sound_id: SoundId,
@@ -98,6 +107,20 @@ impl DrumFillDemo {
 		Ok(())
 	}
 
+	pub fn check_for_events(&mut self) -> Result<(), Box<dyn Error>> {
+		for event in self.audio_manager.events() {
+			match event {
+				kira::Event::Custom(event) => match event {
+					AudioEvent::Beat(beat) => {
+						self.playback_state = PlaybackState::Looping(beat);
+					}
+				},
+				_ => {}
+			}
+		}
+		Ok(())
+	}
+
 	pub fn update(&mut self, message: Message) -> Result<(), Box<dyn Error>> {
 		match message {
 			Message::Play => {
@@ -115,6 +138,7 @@ impl DrumFillDemo {
 					.on_press(Message::GoToDemoSelect),
 			)
 			.push(Button::new(&mut self.play_button, Text::new("Play")).on_press(Message::Play))
+			.push(Text::new(self.playback_state.to_string()))
 			.into()
 	}
 }
