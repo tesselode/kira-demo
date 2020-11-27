@@ -1,6 +1,8 @@
 use std::error::Error;
 
-use iced::{Button, Column, Text};
+use iced::{
+	container::Style, Align, Background, Button, Color, Column, Container, Length, Row, Text,
+};
 use kira::{
 	manager::{AudioManager, AudioManagerSettings},
 	sequence::{Sequence, SequenceId},
@@ -134,11 +136,32 @@ impl DrumFillDemo {
 	pub fn view(&mut self) -> iced::Element<'_, Message> {
 		Column::new()
 			.push(
-				Button::new(&mut self.back_button, Text::new("Back"))
-					.on_press(Message::GoToDemoSelect),
+				Row::new()
+					.padding(16)
+					.spacing(16)
+					.align_items(Align::Center)
+					.push(
+						Button::new(&mut self.back_button, Text::new("Back"))
+							.on_press(Message::GoToDemoSelect),
+					)
+					.push(Text::new("Drum fill demo")),
 			)
-			.push(Button::new(&mut self.play_button, Text::new("Play")).on_press(Message::Play))
-			.push(Text::new(self.playback_state.to_string()))
+			.push(
+				Container::new(
+					Column::new()
+						.align_items(Align::Center)
+						.spacing(16)
+						.push(
+							Button::new(&mut self.play_button, Text::new("Play").size(24))
+								.on_press(Message::Play),
+						)
+						.push(Text::new(self.playback_state.to_string()).size(24)),
+				)
+				.width(Length::Fill)
+				.height(Length::Fill)
+				.align_x(Align::Center)
+				.align_y(Align::Center),
+			)
 			.into()
 	}
 }
