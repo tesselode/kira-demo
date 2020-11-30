@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use iced::{Align, Button, Column, Row, Text};
+use iced::{Align, Button, Column, Length, Row, Text};
 use kira::{
 	manager::{AudioManager, AudioManagerSettings},
 	sequence::{Sequence, SequenceId},
@@ -10,6 +10,16 @@ use kira::{
 };
 
 use crate::ui::common::screen_wrapper::ScreenWrapper;
+
+const EXPLANATION_TEXT: &str = "This demo uses \
+a sequence to play a short drum sample repeatedly and \
+keep track of which beat of music is currently playing. \
+This beat is used to determine what kind of drum fill \
+to play.
+
+When the drum fill is triggered, a second sequence waits \
+for the right beat, stops the previous sequence, starts \
+the drum fill, and then starts a new loop.";
 
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
@@ -234,7 +244,13 @@ impl DrumFillDemo {
 						.push(play_button)
 						.push(play_drum_fill_button),
 				)
-				.push(Text::new(self.playback_state.to_string()).size(24)),
+				.push(Text::new(self.playback_state.to_string()).size(24))
+				.push(
+					Column::new()
+						.width(Length::Fill)
+						.max_width(600)
+						.push(Text::new(EXPLANATION_TEXT)),
+				),
 		)
 	}
 }

@@ -23,6 +23,7 @@ impl<Message: Clone> ScreenWrapper<Message> {
 				Container::new(contents)
 					.width(Length::Fill)
 					.height(Length::Fill)
+					.padding(16)
 					.center_x()
 					.center_y(),
 			)

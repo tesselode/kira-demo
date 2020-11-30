@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use iced::{Align, Button, Column, Container, Length, Row, Text};
+use iced::{Align, Button, Column, Length, Text};
 use kira::{
 	arrangement::{Arrangement, ArrangementId},
 	instance::InstanceSettings,
@@ -15,7 +15,14 @@ use kira::{
 	Tempo, Value,
 };
 
-use crate::ui::common::{header::Header, screen_wrapper::ScreenWrapper};
+use crate::ui::common::screen_wrapper::ScreenWrapper;
+
+const EXPLANATION_TEXT: &str = "This demo uses a single \
+parameter to control the cutoff frequency of a filter, \
+the volume of the drums, and the volume of the pad.
+
+Each of these values uses a different mapping to properly \
+respond to the change in the \"underwater\" parameter.";
 
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
@@ -158,7 +165,8 @@ impl UnderwaterDemo {
 			Text::new(match self.sequence_id {
 				Some(_) => "Stop",
 				None => "Play",
-			}),
+			})
+			.size(24),
 		)
 		.on_press(match self.sequence_id {
 			Some(_) => Message::Stop,
@@ -170,7 +178,8 @@ impl UnderwaterDemo {
 			Text::new(match self.underwater {
 				false => "Submerge",
 				true => "Resurface",
-			}),
+			})
+			.size(24),
 		)
 		.on_press(match self.underwater {
 			false => Message::Submerge,
@@ -182,7 +191,13 @@ impl UnderwaterDemo {
 				.spacing(16)
 				.align_items(Align::Center)
 				.push(play_button)
-				.push(underwater_button),
+				.push(underwater_button)
+				.push(
+					Column::new()
+						.width(Length::Fill)
+						.max_width(600)
+						.push(Text::new(EXPLANATION_TEXT)),
+				),
 		)
 	}
 }
