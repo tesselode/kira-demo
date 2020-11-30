@@ -2,13 +2,16 @@ mod ui;
 
 use std::{error::Error, time::Duration};
 
-use iced::{executor, Application, Command, Subscription};
-use ui::screen::{
-	demo_select,
-	demo_select::DemoSelect,
-	drum_fill_demo,
-	drum_fill_demo::DrumFillDemo,
-	underwater_demo::{self, UnderwaterDemo},
+use iced::{executor, Application, Command, Container, Length, Subscription};
+use ui::{
+	screen::{
+		demo_select,
+		demo_select::DemoSelect,
+		drum_fill_demo,
+		drum_fill_demo::DrumFillDemo,
+		underwater_demo::{self, UnderwaterDemo},
+	},
+	style::AppStyles,
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -97,7 +100,7 @@ impl Application for App {
 	}
 
 	fn view(&mut self) -> iced::Element<'_, Self::Message> {
-		match &mut self.screen {
+		Container::new(match &mut self.screen {
 			Screen::DemoSelect(screen) => screen.view().map(|message| Message::DemoSelect(message)),
 			Screen::DrumFillDemo(screen) => {
 				screen.view().map(|message| Message::DrumFillDemo(message))
@@ -105,7 +108,11 @@ impl Application for App {
 			Screen::UnderwaterDemo(screen) => screen
 				.view()
 				.map(|message| Message::UnderwaterDemo(message)),
-		}
+		})
+		.width(Length::Fill)
+		.height(Length::Fill)
+		.style(AppStyles)
+		.into()
 	}
 }
 

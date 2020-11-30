@@ -15,7 +15,7 @@ use kira::{
 	Tempo, Value,
 };
 
-use crate::ui::common::screen_wrapper::ScreenWrapper;
+use crate::ui::{common::screen_wrapper::ScreenWrapper, style::AppStyles};
 
 const EXPLANATION_TEXT: &str = "This demo uses a single \
 parameter to control the cutoff frequency of a filter, \
@@ -171,7 +171,8 @@ impl UnderwaterDemo {
 		.on_press(match self.sequence_id {
 			Some(_) => Message::Stop,
 			None => Message::Play,
-		});
+		})
+		.style(AppStyles);
 
 		let underwater_button = Button::new(
 			&mut self.underwater_button,
@@ -184,7 +185,8 @@ impl UnderwaterDemo {
 		.on_press(match self.underwater {
 			false => Message::Submerge,
 			true => Message::Resurface,
-		});
+		})
+		.style(AppStyles);
 
 		self.screen_wrapper.view(
 			Column::new()

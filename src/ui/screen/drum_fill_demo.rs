@@ -9,7 +9,7 @@ use kira::{
 	Duration, MetronomeSettings, Tempo,
 };
 
-use crate::ui::common::screen_wrapper::ScreenWrapper;
+use crate::ui::{common::screen_wrapper::ScreenWrapper, style::AppStyles};
 
 const EXPLANATION_TEXT: &str = "This demo uses \
 a sequence to play a short drum sample repeatedly and \
@@ -221,13 +221,15 @@ impl DrumFillDemo {
 		.on_press(match self.playback_state {
 			PlaybackState::Stopped => Message::StartSequence,
 			_ => Message::Stop,
-		});
+		})
+		.style(AppStyles);
 
 		let play_drum_fill_button = {
 			let mut button = Button::new(
 				&mut self.play_drum_fill_button,
 				Text::new("Play drum fill").size(24),
-			);
+			)
+			.style(AppStyles);
 			if let PlaybackState::Looping(_) = self.playback_state {
 				button = button.on_press(Message::StartSequence);
 			}

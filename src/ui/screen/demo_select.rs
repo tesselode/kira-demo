@@ -1,5 +1,7 @@
 use iced::{Align, Button, Column, Container, Length, Text};
 
+use crate::ui::style::AppStyles;
+
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
 	GoToDrumFillDemo,
@@ -30,14 +32,16 @@ impl DemoSelect {
 						&mut self.drum_fill_demo_button,
 						Text::new("Drum fill demo").size(24),
 					)
-					.on_press(Message::GoToDrumFillDemo),
+					.on_press(Message::GoToDrumFillDemo)
+					.style(AppStyles),
 				)
 				.push(
 					Button::new(
 						&mut self.underwater_demo_button,
 						Text::new("Underwater demo").size(24),
 					)
-					.on_press(Message::GoToUnderwaterDemo),
+					.on_press(Message::GoToUnderwaterDemo)
+					.style(AppStyles),
 				),
 		)
 		.width(Length::Fill)
