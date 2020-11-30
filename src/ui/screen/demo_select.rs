@@ -24,15 +24,18 @@ impl DemoSelect {
 			Column::new()
 				.spacing(16)
 				.align_items(Align::Center)
-				.push(Text::new("Select a demo").size(32))
+				.push(Text::new("Select a demo").size(48))
 				.push(
-					Button::new(&mut self.drum_fill_demo_button, Text::new("Drum fill demo"))
-						.on_press(Message::GoToDrumFillDemo),
+					Button::new(
+						&mut self.drum_fill_demo_button,
+						Text::new("Drum fill demo").size(24),
+					)
+					.on_press(Message::GoToDrumFillDemo),
 				)
 				.push(
 					Button::new(
 						&mut self.underwater_demo_button,
-						Text::new("Underwater demo"),
+						Text::new("Underwater demo").size(24),
 					)
 					.on_press(Message::GoToUnderwaterDemo),
 				),

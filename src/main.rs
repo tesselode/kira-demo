@@ -110,6 +110,12 @@ impl Application for App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-	App::run(Default::default())?;
+	App::run(iced::Settings {
+		window: iced::window::Settings {
+			size: (650, 400),
+			..Default::default()
+		},
+		..Default::default()
+	})?;
 	Ok(())
 }
