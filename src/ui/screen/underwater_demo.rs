@@ -15,7 +15,7 @@ use kira::{
 	Tempo, Value,
 };
 
-use crate::ui::common::header::Header;
+use crate::ui::common::{header::Header, screen_wrapper::ScreenWrapper};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
@@ -35,7 +35,7 @@ pub struct UnderwaterDemo {
 	sequence_id: Option<SequenceId>,
 	underwater_parameter_id: ParameterId,
 	underwater: bool,
-	header: Header<Message>,
+	screen_wrapper: ScreenWrapper<Message>,
 	play_button: iced::button::State,
 	underwater_button: iced::button::State,
 }
@@ -93,7 +93,7 @@ impl UnderwaterDemo {
 			sequence_id: None,
 			underwater_parameter_id,
 			underwater: false,
-			header: Header::new("Underwater demo".into(), Message::GoToDemoSelect),
+			screen_wrapper: ScreenWrapper::new("Underwater demo".into(), Message::GoToDemoSelect),
 			play_button: iced::button::State::new(),
 			underwater_button: iced::button::State::new(),
 		})
@@ -177,21 +177,12 @@ impl UnderwaterDemo {
 			true => Message::Resurface,
 		});
 
-		Column::new()
-			.push(self.header.view())
-			.push(
-				Container::new(
-					Column::new()
-						.spacing(16)
-						.align_items(Align::Center)
-						.push(play_button)
-						.push(underwater_button),
-				)
-				.width(Length::Fill)
-				.height(Length::Fill)
-				.center_x()
-				.center_y(),
-			)
-			.into()
+		self.screen_wrapper.view(
+			Column::new()
+				.spacing(16)
+				.align_items(Align::Center)
+				.push(play_button)
+				.push(underwater_button),
+		)
 	}
 }

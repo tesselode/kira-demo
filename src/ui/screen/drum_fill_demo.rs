@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use iced::{Align, Button, Column, Container, Length, Row, Text};
+use iced::{Align, Button, Column, Row, Text};
 use kira::{
 	manager::{AudioManager, AudioManagerSettings},
 	sequence::{Sequence, SequenceId},
@@ -9,7 +9,7 @@ use kira::{
 	Duration, MetronomeSettings, Tempo,
 };
 
-use crate::ui::common::header::Header;
+use crate::ui::common::screen_wrapper::ScreenWrapper;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
@@ -52,7 +52,7 @@ pub struct DrumFillDemo {
 	fill_4b_sound_id: SoundId,
 	playback_state: PlaybackState,
 	sequence_ids: Vec<SequenceId>,
-	header: Header<Message>,
+	screen_wrapper: ScreenWrapper<Message>,
 	play_button: iced::button::State,
 	play_drum_fill_button: iced::button::State,
 }
@@ -91,7 +91,7 @@ impl DrumFillDemo {
 			fill_4b_sound_id,
 			playback_state: PlaybackState::Stopped,
 			sequence_ids: vec![],
-			header: Header::new("Drum fill demo".into(), Message::GoToDemoSelect),
+			screen_wrapper: ScreenWrapper::new("Drum fill demo".into(), Message::GoToDemoSelect),
 			play_button: iced::button::State::new(),
 			play_drum_fill_button: iced::button::State::new(),
 		})
@@ -224,26 +224,17 @@ impl DrumFillDemo {
 			button
 		};
 
-		let button_row = Row::new()
-			.spacing(16)
-			.push(play_button)
-			.push(play_drum_fill_button);
-
-		Column::new()
-			.push(self.header.view())
-			.push(
-				Container::new(
-					Column::new()
-						.align_items(Align::Center)
+		self.screen_wrapper.view(
+			Column::new()
+				.align_items(Align::Center)
+				.spacing(16)
+				.push(
+					Row::new()
 						.spacing(16)
-						.push(button_row)
-						.push(Text::new(self.playback_state.to_string()).size(24)),
+						.push(play_button)
+						.push(play_drum_fill_button),
 				)
-				.width(Length::Fill)
-				.height(Length::Fill)
-				.align_x(Align::Center)
-				.align_y(Align::Center),
-			)
-			.into()
+				.push(Text::new(self.playback_state.to_string()).size(24)),
+		)
 	}
 }
