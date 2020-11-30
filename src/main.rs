@@ -1,13 +1,15 @@
-mod demo_select;
-mod drum_fill_demo;
-mod underwater_demo;
+mod ui;
 
 use std::{error::Error, time::Duration};
 
-use demo_select::DemoSelect;
-use drum_fill_demo::DrumFillDemo;
 use iced::{executor, Application, Command, Subscription};
-use underwater_demo::UnderwaterDemo;
+use ui::screen::{
+	demo_select,
+	demo_select::DemoSelect,
+	drum_fill_demo,
+	drum_fill_demo::DrumFillDemo,
+	underwater_demo::{self, UnderwaterDemo},
+};
 
 #[derive(Debug, Copy, Clone)]
 enum Message {
