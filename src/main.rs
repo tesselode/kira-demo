@@ -1,22 +1,26 @@
 mod demo_select;
 mod drum_fill_demo;
+mod underwater_demo;
 
 use std::{error::Error, time::Duration};
 
 use demo_select::DemoSelect;
 use drum_fill_demo::DrumFillDemo;
 use iced::{executor, Application, Command, Subscription};
+use underwater_demo::UnderwaterDemo;
 
 #[derive(Debug, Copy, Clone)]
 enum Message {
 	CheckForEvents,
 	DemoSelect(demo_select::Message),
 	DrumFillDemo(drum_fill_demo::Message),
+	UnderwaterDemo(underwater_demo::Message),
 }
 
 enum Screen {
 	DemoSelect(DemoSelect),
 	DrumFillDemo(DrumFillDemo),
+	UnderwaterDemo(UnderwaterDemo),
 }
 
 struct App {
@@ -53,6 +57,9 @@ impl Application for App {
 				demo_select::Message::GoToDrumFillDemo => {
 					self.screen = Screen::DrumFillDemo(DrumFillDemo::new().unwrap());
 				}
+				demo_select::Message::GoToUnderwaterDemo => {
+					self.screen = Screen::UnderwaterDemo(UnderwaterDemo::new().unwrap());
+				}
 			},
 			Message::DrumFillDemo(message) => match message {
 				drum_fill_demo::Message::GoToDemoSelect => {
@@ -60,6 +67,16 @@ impl Application for App {
 				}
 				message => {
 					if let Screen::DrumFillDemo(screen) = &mut self.screen {
+						screen.update(message).unwrap();
+					}
+				}
+			},
+			Message::UnderwaterDemo(message) => match message {
+				underwater_demo::Message::GoToDemoSelect => {
+					self.screen = Screen::DemoSelect(DemoSelect::new());
+				}
+				message => {
+					if let Screen::UnderwaterDemo(screen) = &mut self.screen {
 						screen.update(message).unwrap();
 					}
 				}
@@ -83,6 +100,9 @@ impl Application for App {
 			Screen::DrumFillDemo(screen) => {
 				screen.view().map(|message| Message::DrumFillDemo(message))
 			}
+			Screen::UnderwaterDemo(screen) => screen
+				.view()
+				.map(|message| Message::UnderwaterDemo(message)),
 		}
 	}
 }
