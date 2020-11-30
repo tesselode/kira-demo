@@ -9,6 +9,8 @@ use kira::{
 	Duration, MetronomeSettings, Tempo,
 };
 
+use crate::ui::common::header::Header;
+
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
 	GoToDemoSelect,
@@ -50,7 +52,7 @@ pub struct DrumFillDemo {
 	fill_4b_sound_id: SoundId,
 	playback_state: PlaybackState,
 	sequence_ids: Vec<SequenceId>,
-	back_button: iced::button::State,
+	header: Header<Message>,
 	play_button: iced::button::State,
 	play_drum_fill_button: iced::button::State,
 }
@@ -89,7 +91,7 @@ impl DrumFillDemo {
 			fill_4b_sound_id,
 			playback_state: PlaybackState::Stopped,
 			sequence_ids: vec![],
-			back_button: iced::button::State::new(),
+			header: Header::new("Drum fill demo".into(), Message::GoToDemoSelect),
 			play_button: iced::button::State::new(),
 			play_drum_fill_button: iced::button::State::new(),
 		})
@@ -228,17 +230,7 @@ impl DrumFillDemo {
 			.push(play_drum_fill_button);
 
 		Column::new()
-			.push(
-				Row::new()
-					.padding(16)
-					.spacing(16)
-					.align_items(Align::Center)
-					.push(
-						Button::new(&mut self.back_button, Text::new("Back"))
-							.on_press(Message::GoToDemoSelect),
-					)
-					.push(Text::new("Drum fill demo")),
-			)
+			.push(self.header.view())
 			.push(
 				Container::new(
 					Column::new()

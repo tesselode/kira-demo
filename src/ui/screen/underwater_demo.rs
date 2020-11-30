@@ -15,6 +15,8 @@ use kira::{
 	Tempo, Value,
 };
 
+use crate::ui::common::header::Header;
+
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
 	GoToDemoSelect,
@@ -33,7 +35,7 @@ pub struct UnderwaterDemo {
 	sequence_id: Option<SequenceId>,
 	underwater_parameter_id: ParameterId,
 	underwater: bool,
-	back_button: iced::button::State,
+	header: Header<Message>,
 	play_button: iced::button::State,
 	underwater_button: iced::button::State,
 }
@@ -91,7 +93,7 @@ impl UnderwaterDemo {
 			sequence_id: None,
 			underwater_parameter_id,
 			underwater: false,
-			back_button: iced::button::State::new(),
+			header: Header::new("Underwater demo".into(), Message::GoToDemoSelect),
 			play_button: iced::button::State::new(),
 			underwater_button: iced::button::State::new(),
 		})
@@ -176,17 +178,7 @@ impl UnderwaterDemo {
 		});
 
 		Column::new()
-			.push(
-				Row::new()
-					.padding(16)
-					.spacing(16)
-					.align_items(Align::Center)
-					.push(
-						Button::new(&mut self.back_button, Text::new("Back"))
-							.on_press(Message::GoToDemoSelect),
-					)
-					.push(Text::new("Underwater demo")),
-			)
+			.push(self.header.view())
 			.push(
 				Container::new(
 					Column::new()
