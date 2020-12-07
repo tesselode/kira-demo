@@ -3,6 +3,9 @@ name = "kira-demo"
 version = "0.1.0"
 authors = ["Andrew Minnich <aminnich3@gmail.com>"]
 edition = "2018"
+license = "MIT"
+keywords = ["gamedev", "audio", "music"]
+categories = ["game-development", "multimedia::audio"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
