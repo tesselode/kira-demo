@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, mem::replace};
 
 use iced::{Button, Column, Element, Length, Space, Text};
 use kira::{
@@ -38,6 +38,30 @@ enum Beat {
 	Four,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum DrumFill {
+	TwoBeat,
+	ThreeBeat,
+	FourBeat,
+}
+
+impl DrumFill {
+	fn as_usize(self) -> usize {
+		match self {
+			DrumFill::TwoBeat => 2,
+			DrumFill::ThreeBeat => 3,
+			DrumFill::FourBeat => 4,
+		}
+	}
+
+	fn start_interval(self) -> f64 {
+		match self {
+			DrumFill::FourBeat => 4.0,
+			_ => 1.0,
+		}
+	}
+}
+
 impl Beat {
 	fn as_usize(self) -> usize {
 		match self {
@@ -47,43 +71,40 @@ impl Beat {
 			Beat::Four => 4,
 		}
 	}
-}
 
-#[derive(Debug, Clone, Copy)]
-enum FillLength {
-	TwoBeats,
-	ThreeBeats,
-	FourBeats,
-}
-
-impl FillLength {
-	fn as_usize(self) -> usize {
+	fn drum_fill(self) -> DrumFill {
 		match self {
-			FillLength::TwoBeats => 2,
-			FillLength::ThreeBeats => 3,
-			FillLength::FourBeats => 4,
+			Beat::One => DrumFill::ThreeBeat,
+			Beat::Two => DrumFill::TwoBeat,
+			_ => DrumFill::FourBeat,
 		}
 	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum DrumFillEvent {
+	Start,
+	Finish,
 }
 
 enum PlaybackState {
 	Stopped,
 	PlayingLoop {
 		beat_tracker_sequence: (SequenceInstanceId, EventReceiver<Beat>),
-		loop_sequence: (SequenceInstanceId, EventReceiver<()>),
+		loop_sequence: (SequenceInstanceId, EventReceiver<DrumFillEvent>),
 		current_beat: Beat,
 	},
 	QueueingFill {
 		beat_tracker_sequence: (SequenceInstanceId, EventReceiver<Beat>),
-		loop_sequence: (SequenceInstanceId, EventReceiver<()>),
+		loop_sequence: (SequenceInstanceId, EventReceiver<DrumFillEvent>),
 		current_beat: Beat,
-		fill_length: FillLength,
+		drum_fill: DrumFill,
 	},
 	PlayingFill {
 		beat_tracker_sequence: (SequenceInstanceId, EventReceiver<Beat>),
-		loop_sequence: (SequenceInstanceId, EventReceiver<()>),
+		loop_sequence: (SequenceInstanceId, EventReceiver<DrumFillEvent>),
 		current_beat: Beat,
-		fill_length: FillLength,
+		drum_fill: DrumFill,
 	},
 }
 
@@ -141,10 +162,21 @@ impl DrumFillDemo {
 		})
 	}
 
-	fn start_beat_tracker(&mut self) -> AudioResult<(SequenceInstanceId, EventReceiver<Beat>)> {
-		self.audio_manager.start_sequence(
+	fn fill_sound(&mut self, fill: DrumFill) -> SoundId {
+		match fill {
+			DrumFill::TwoBeat => self.fill_2b_sound_id,
+			DrumFill::ThreeBeat => self.fill_3b_sound_id,
+			DrumFill::FourBeat => self.fill_4b_sound_id,
+		}
+	}
+
+	fn start_beat_tracker(
+		audio_manager: &mut AudioManager,
+		group_id: GroupId,
+	) -> AudioResult<(SequenceInstanceId, EventReceiver<Beat>)> {
+		audio_manager.start_sequence(
 			{
-				let mut sequence = Sequence::new(SequenceSettings::new().groups([self.group_id]));
+				let mut sequence = Sequence::new(SequenceSettings::new().groups([group_id]));
 				sequence.wait_for_interval(1.0);
 				sequence.start_loop();
 				sequence.emit(Beat::One);
@@ -161,13 +193,43 @@ impl DrumFillDemo {
 		)
 	}
 
-	fn start_loop_sequence(&mut self) -> AudioResult<(SequenceInstanceId, EventReceiver<()>)> {
-		self.audio_manager.start_sequence(
+	fn start_loop_sequence(
+		audio_manager: &mut AudioManager,
+		group_id: GroupId,
+		loop_sound_id: SoundId,
+	) -> AudioResult<(SequenceInstanceId, EventReceiver<DrumFillEvent>)> {
+		audio_manager.start_sequence(
 			{
-				let mut sequence = Sequence::new(SequenceSettings::new().groups([self.group_id]));
+				let mut sequence = Sequence::new(SequenceSettings::new().groups([group_id]));
 				sequence.wait_for_interval(1.0);
 				sequence.start_loop();
-				sequence.play(self.loop_sound_id, Default::default());
+				sequence.play(loop_sound_id, Default::default());
+				sequence.wait(Duration::Beats(4.0));
+				sequence
+			},
+			Default::default(),
+		)
+	}
+
+	fn start_fill_and_loop_sequence(
+		audio_manager: &mut AudioManager,
+		group_id: GroupId,
+		start_interval: f64,
+		previous_loop_sequence_id: SequenceInstanceId,
+		fill_sound_id: SoundId,
+		loop_sound_id: SoundId,
+	) -> AudioResult<(SequenceInstanceId, EventReceiver<DrumFillEvent>)> {
+		audio_manager.start_sequence(
+			{
+				let mut sequence = Sequence::new(SequenceSettings::new().groups([group_id]));
+				sequence.wait_for_interval(start_interval);
+				sequence.emit(DrumFillEvent::Start);
+				sequence.stop_sequence_and_instances(previous_loop_sequence_id, Default::default());
+				sequence.play(fill_sound_id, Default::default());
+				sequence.wait_for_interval(4.0);
+				sequence.emit(DrumFillEvent::Finish);
+				sequence.start_loop();
+				sequence.play(loop_sound_id, Default::default());
 				sequence.wait(Duration::Beats(4.0));
 				sequence
 			},
@@ -179,11 +241,45 @@ impl DrumFillDemo {
 		match message {
 			Message::Play => {
 				self.playback_state = PlaybackState::PlayingLoop {
-					beat_tracker_sequence: self.start_beat_tracker()?,
-					loop_sequence: self.start_loop_sequence()?,
+					beat_tracker_sequence: Self::start_beat_tracker(
+						&mut self.audio_manager,
+						self.group_id,
+					)?,
+					loop_sequence: Self::start_loop_sequence(
+						&mut self.audio_manager,
+						self.group_id,
+						self.loop_sound_id,
+					)?,
 					current_beat: Beat::One,
 				};
 				self.audio_manager.start_metronome()?;
+			}
+			Message::PlayDrumFill => {
+				match replace(&mut self.playback_state, PlaybackState::Stopped) {
+					PlaybackState::PlayingLoop {
+						beat_tracker_sequence,
+						loop_sequence,
+						current_beat,
+					} => {
+						let drum_fill = current_beat.drum_fill();
+						let fill_sound_id = self.fill_sound(drum_fill);
+						let start_interval = drum_fill.start_interval();
+						self.playback_state = PlaybackState::QueueingFill {
+							beat_tracker_sequence,
+							loop_sequence: Self::start_fill_and_loop_sequence(
+								&mut self.audio_manager,
+								self.group_id,
+								start_interval,
+								loop_sequence.0,
+								fill_sound_id,
+								self.loop_sound_id,
+							)?,
+							current_beat,
+							drum_fill,
+						}
+					}
+					_ => unreachable!(),
+				};
 			}
 			Message::Stop => {
 				self.audio_manager
@@ -207,25 +303,76 @@ impl DrumFillDemo {
 					*current_beat = *beat;
 				}
 			}
+			PlaybackState::QueueingFill {
+				beat_tracker_sequence,
+				loop_sequence,
+				current_beat,
+				drum_fill,
+			} => {
+				while let Some(beat) = beat_tracker_sequence.1.pop() {
+					*current_beat = *beat;
+				}
+				while let Some(event) = loop_sequence.1.pop() {
+					match event {
+						DrumFillEvent::Start => {
+							let playback_state =
+								replace(&mut self.playback_state, PlaybackState::Stopped);
+							self.playback_state = PlaybackState::PlayingFill {
+								beat_tracker_sequence: *beat_tracker_sequence,
+								loop_sequence: *loop_sequence,
+								current_beat: *current_beat,
+								drum_fill: *drum_fill,
+							}
+						}
+						DrumFillEvent::Finish => {}
+					}
+				}
+			}
+			PlaybackState::PlayingFill {
+				beat_tracker_sequence,
+				loop_sequence,
+				current_beat,
+				drum_fill,
+			} => {
+				while let Some(beat) = beat_tracker_sequence.1.pop() {
+					*current_beat = *beat;
+				}
+			}
 			_ => {}
 		}
 		Ok(())
 	}
 
 	pub fn view(&mut self) -> iced::Element<'_, Message> {
-		let mut column = Column::new().push(
-			Button::new(
-				&mut self.play_button,
-				Text::new(match &mut self.playback_state {
-					PlaybackState::Stopped => "Play",
-					_ => "Stop",
+		let mut column = Column::new()
+			.push(
+				Button::new(
+					&mut self.play_button,
+					Text::new(match &mut self.playback_state {
+						PlaybackState::Stopped => "Play",
+						_ => "Stop",
+					}),
+				)
+				.on_press(match &mut self.playback_state {
+					PlaybackState::Stopped => Message::Play,
+					_ => Message::Stop,
 				}),
 			)
-			.on_press(match &mut self.playback_state {
-				PlaybackState::Stopped => Message::Play,
-				_ => Message::Stop,
-			}),
-		);
+			.push({
+				let mut button =
+					Button::new(&mut self.play_drum_fill_button, Text::new("Play drum fill"));
+				match &mut self.playback_state {
+					PlaybackState::PlayingLoop {
+						beat_tracker_sequence: _,
+						loop_sequence: _,
+						current_beat: _,
+					} => {
+						button = button.on_press(Message::PlayDrumFill);
+					}
+					_ => {}
+				}
+				button
+			});
 		match &mut self.playback_state {
 			PlaybackState::PlayingLoop {
 				beat_tracker_sequence: _,
