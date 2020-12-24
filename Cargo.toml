@@ -11,7 +11,7 @@ categories = ["game-development", "multimedia::audio"]
 
 [dependencies]
 iced = {version = "0.2.0", features = ["tokio"]}
-kira = "0.2.0"
+kira = {path = "../kira/kira"}
 
 [profile.dev]
 opt-level = 1

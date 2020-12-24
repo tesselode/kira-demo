@@ -1554,8 +1554,6 @@ dependencies = [
 [[package]]
 name = "kira"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c837426aed4fe38a426042abf9b250a9972f1ea0f23f51b6b120c72d0504055"
 dependencies = [
  "claxon",
  "cpal",
@@ -1563,6 +1561,7 @@ dependencies = [
  "indexmap",
  "lewton",
  "minimp3",
+ "nanorand",
  "ringbuf",
 ]
 
@@ -1819,6 +1818,12 @@ dependencies = [
  "spirv_headers",
  "thiserror",
 ]
+
+[[package]]
+name = "nanorand"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3173d7bb904c5a3a2f9167eb936916a39e97124846b8316223323aed9a34d1e7"
 
 [[package]]
 name = "ndk"
