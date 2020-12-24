@@ -136,7 +136,9 @@ impl DrumFillDemo {
 		Ok(())
 	}
 
-	fn start_beat_tracker(&mut self) -> AudioResult<(SequenceInstanceId, EventReceiver<usize>)> {
+	pub fn start_beat_tracker(
+		&mut self,
+	) -> AudioResult<(SequenceInstanceId, EventReceiver<usize>)> {
 		self.audio_manager.start_sequence(
 			{
 				let mut sequence = Sequence::new(SequenceSettings::new().groups([self.group_id]));
@@ -152,40 +154,85 @@ impl DrumFillDemo {
 		)
 	}
 
-	fn start_sequence(&mut self) -> AudioResult<SequenceInstanceId> {
-		match self.playback_state {
-			PlaybackState::Stopped => self
-				.audio_manager
-				.start_sequence(
-					{
-						let mut sequence =
-							Sequence::<()>::new(SequenceSettings::new().groups([self.group_id]));
-						sequence.wait_for_interval(1.0);
-						sequence.start_loop();
-						sequence.play(self.loop_sound_id, Default::default());
-						sequence.wait(Duration::Beats(4.0));
-						sequence
-					},
-					Default::default(),
-				)
-				.map(|sequence| sequence.0),
-			_ => todo!(),
-		}
+	pub fn start_loop(&mut self) -> AudioResult<SequenceInstanceId> {
+		self.audio_manager
+			.start_sequence(
+				{
+					let mut sequence =
+						Sequence::<()>::new(SequenceSettings::new().groups([self.group_id]));
+					match &mut self.playback_state {
+						PlaybackState::Stopped => {
+							sequence.wait_for_interval(1.0);
+						}
+						PlaybackState::PlayingLoop {
+							beat_tracker_sequence: _,
+							loop_sequence_id,
+							current_beat,
+						} => {
+							match current_beat {
+								1 => {
+									sequence.wait_for_interval(1.0);
+									sequence.play(self.fill_3b_sound_id, Default::default());
+								}
+								2 => {
+									sequence.wait_for_interval(1.0);
+									sequence.play(self.fill_2b_sound_id, Default::default());
+								}
+								3 | 4 => {
+									sequence.wait_for_interval(4.0);
+									sequence.play(self.fill_4b_sound_id, Default::default());
+								}
+								_ => unreachable!(),
+							}
+							sequence.stop_sequence(*loop_sequence_id);
+							sequence.wait_for_interval(4.0);
+						}
+						_ => unreachable!(),
+					}
+					sequence.start_loop();
+					sequence.play(self.loop_sound_id, Default::default());
+					sequence.wait(Duration::Beats(4.0));
+					sequence
+				},
+				Default::default(),
+			)
+			.map(|sequence| sequence.0)
 	}
 
 	pub fn update(&mut self, message: Message) -> Result<(), Box<dyn Error>> {
 		match message {
-			Message::StartSequence => match self.playback_state {
-				PlaybackState::Stopped => {
-					self.playback_state = PlaybackState::PlayingLoop {
-						beat_tracker_sequence: self.start_beat_tracker()?,
-						loop_sequence_id: self.start_sequence()?,
-						current_beat: 1,
-					};
-					self.audio_manager.start_metronome()?;
-				}
-				_ => {}
-			},
+			Message::StartSequence => {
+				let playback_state =
+					std::mem::replace(&mut self.playback_state, PlaybackState::Stopped);
+				match playback_state {
+					PlaybackState::Stopped => {
+						self.playback_state = PlaybackState::PlayingLoop {
+							beat_tracker_sequence: self.start_beat_tracker()?,
+							loop_sequence_id: self.start_loop()?,
+							current_beat: 1,
+						};
+						self.audio_manager.start_metronome()?;
+					}
+					PlaybackState::PlayingLoop {
+						beat_tracker_sequence,
+						loop_sequence_id: _,
+						current_beat,
+					} => {
+						self.playback_state = PlaybackState::QueueingFill {
+							beat_tracker_sequence,
+							loop_sequence_id: self.start_loop()?,
+							current_beat,
+							drum_fill_length: match current_beat {
+								1 => 3,
+								2 => 2,
+								3 | 4 => 4,
+								_ => unreachable!(),
+							},
+						}
+					}
+					_ => {}
+				};
+			}
 			Message::Stop => {
 				self.audio_manager
 					.stop_group(self.group_id, Default::default())?;
