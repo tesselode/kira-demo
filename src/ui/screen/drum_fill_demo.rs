@@ -25,29 +25,6 @@ the drum fill, and then starts a new loop.";
 #[derive(Debug, Copy, Clone)]
 pub enum Message {
 	GoToDemoSelect,
-	StartSequence,
-	Stop,
-}
-
-enum PlaybackState {
-	Stopped,
-	PlayingLoop {
-		beat_tracker_sequence: (SequenceInstanceId, EventReceiver<usize>),
-		loop_sequence_id: SequenceInstanceId,
-		current_beat: usize,
-	},
-	QueueingFill {
-		beat_tracker_sequence: (SequenceInstanceId, EventReceiver<usize>),
-		loop_sequence_id: SequenceInstanceId,
-		current_beat: usize,
-		drum_fill_length: usize,
-	},
-	PlayingFill {
-		beat_tracker_sequence: (SequenceInstanceId, EventReceiver<usize>),
-		loop_sequence_id: SequenceInstanceId,
-		current_beat: usize,
-		drum_fill_length: usize,
-	},
 }
 
 pub struct DrumFillDemo {
@@ -57,7 +34,6 @@ pub struct DrumFillDemo {
 	fill_2b_sound_id: SoundId,
 	fill_3b_sound_id: SoundId,
 	fill_4b_sound_id: SoundId,
-	playback_state: PlaybackState,
 	screen_wrapper: ScreenWrapper<Message>,
 	play_button: iced::button::State,
 	play_drum_fill_button: iced::button::State,
@@ -97,7 +73,6 @@ impl DrumFillDemo {
 			fill_2b_sound_id,
 			fill_3b_sound_id,
 			fill_4b_sound_id,
-			playback_state: PlaybackState::Stopped,
 			screen_wrapper: ScreenWrapper::new("Drum fill demo".into(), Message::GoToDemoSelect),
 			play_button: iced::button::State::new(),
 			play_drum_fill_button: iced::button::State::new(),
@@ -105,183 +80,12 @@ impl DrumFillDemo {
 	}
 
 	pub fn check_for_events(&mut self) -> Result<(), Box<dyn Error>> {
-		match &mut self.playback_state {
-			PlaybackState::Stopped => {}
-			PlaybackState::PlayingLoop {
-				beat_tracker_sequence,
-				loop_sequence_id: _,
-				current_beat,
-			} => {
-				while let Some(beat) = beat_tracker_sequence.1.pop() {
-					*current_beat = *beat;
-				}
-			}
-			PlaybackState::QueueingFill {
-				beat_tracker_sequence,
-				loop_sequence_id: _,
-				current_beat,
-				drum_fill_length: _,
-			}
-			| PlaybackState::PlayingFill {
-				beat_tracker_sequence,
-				loop_sequence_id: _,
-				current_beat,
-				drum_fill_length: _,
-			} => {
-				while let Some(beat) = beat_tracker_sequence.1.pop() {
-					*current_beat = *beat;
-				}
-			}
-		}
 		Ok(())
-	}
-
-	pub fn start_beat_tracker(
-		&mut self,
-	) -> AudioResult<(SequenceInstanceId, EventReceiver<usize>)> {
-		self.audio_manager.start_sequence(
-			{
-				let mut sequence = Sequence::new(SequenceSettings::new().groups([self.group_id]));
-				sequence.wait_for_interval(1.0);
-				sequence.start_loop();
-				for i in 1..=4 {
-					sequence.emit(i);
-					sequence.wait(Duration::Beats(1.0));
-				}
-				sequence
-			},
-			Default::default(),
-		)
-	}
-
-	pub fn start_loop(&mut self) -> AudioResult<SequenceInstanceId> {
-		self.audio_manager
-			.start_sequence(
-				{
-					let mut sequence =
-						Sequence::<()>::new(SequenceSettings::new().groups([self.group_id]));
-					match &mut self.playback_state {
-						PlaybackState::Stopped => {
-							sequence.wait_for_interval(1.0);
-						}
-						PlaybackState::PlayingLoop {
-							beat_tracker_sequence: _,
-							loop_sequence_id,
-							current_beat,
-						} => {
-							match current_beat {
-								1 => {
-									sequence.wait_for_interval(1.0);
-									sequence.play(self.fill_3b_sound_id, Default::default());
-								}
-								2 => {
-									sequence.wait_for_interval(1.0);
-									sequence.play(self.fill_2b_sound_id, Default::default());
-								}
-								3 | 4 => {
-									sequence.wait_for_interval(4.0);
-									sequence.play(self.fill_4b_sound_id, Default::default());
-								}
-								_ => unreachable!(),
-							}
-							sequence.stop_sequence(*loop_sequence_id);
-							sequence.wait_for_interval(4.0);
-						}
-						_ => unreachable!(),
-					}
-					sequence.start_loop();
-					sequence.play(self.loop_sound_id, Default::default());
-					sequence.wait(Duration::Beats(4.0));
-					sequence
-				},
-				Default::default(),
-			)
-			.map(|sequence| sequence.0)
 	}
 
 	pub fn update(&mut self, message: Message) -> Result<(), Box<dyn Error>> {
-		match message {
-			Message::StartSequence => {
-				let playback_state =
-					std::mem::replace(&mut self.playback_state, PlaybackState::Stopped);
-				match playback_state {
-					PlaybackState::Stopped => {
-						self.playback_state = PlaybackState::PlayingLoop {
-							beat_tracker_sequence: self.start_beat_tracker()?,
-							loop_sequence_id: self.start_loop()?,
-							current_beat: 1,
-						};
-						self.audio_manager.start_metronome()?;
-					}
-					PlaybackState::PlayingLoop {
-						beat_tracker_sequence,
-						loop_sequence_id: _,
-						current_beat,
-					} => {
-						self.playback_state = PlaybackState::QueueingFill {
-							beat_tracker_sequence,
-							loop_sequence_id: self.start_loop()?,
-							current_beat,
-							drum_fill_length: match current_beat {
-								1 => 3,
-								2 => 2,
-								3 | 4 => 4,
-								_ => unreachable!(),
-							},
-						}
-					}
-					_ => {}
-				};
-			}
-			Message::Stop => {
-				self.audio_manager
-					.stop_group(self.group_id, Default::default())?;
-				self.audio_manager.stop_metronome()?;
-				self.playback_state = PlaybackState::Stopped;
-			}
-			_ => {}
-		}
 		Ok(())
 	}
 
-	pub fn view(&mut self) -> iced::Element<'_, Message> {
-		let mut column = Column::new().push(
-			Button::new(
-				&mut self.play_button,
-				Text::new(match self.playback_state {
-					PlaybackState::Stopped => "Play",
-					_ => "Stop",
-				}),
-			)
-			.on_press(match self.playback_state {
-				PlaybackState::Stopped => Message::StartSequence,
-				_ => Message::Stop,
-			}),
-		);
-		match &self.playback_state {
-			PlaybackState::Stopped => {}
-			PlaybackState::PlayingLoop {
-				beat_tracker_sequence: _,
-				loop_sequence_id: _,
-				current_beat,
-			} => {
-				column = column.push(Text::new(format!("Beat {}", current_beat)));
-			}
-			PlaybackState::QueueingFill {
-				beat_tracker_sequence: _,
-				loop_sequence_id: _,
-				current_beat,
-				drum_fill_length: _,
-			}
-			| PlaybackState::PlayingFill {
-				beat_tracker_sequence: _,
-				loop_sequence_id: _,
-				current_beat,
-				drum_fill_length: _,
-			} => {
-				column = column.push(Text::new(format!("Beat {}", current_beat)));
-			}
-		}
-		column.into()
-	}
+	pub fn view(&mut self) -> iced::Element<'_, Message> {}
 }
