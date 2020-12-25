@@ -1,6 +1,9 @@
-use std::{error::Error, mem::replace};
+mod beat_display;
 
-use iced::{Button, Column, Element, Length, Space, Text};
+use std::error::Error;
+
+use beat_display::BeatDisplay;
+use iced::{Button, Column, Row, Text};
 use kira::{
 	group::GroupId,
 	manager::{AudioManager, AudioManagerSettings},
@@ -284,40 +287,50 @@ impl DrumFillDemo {
 	}
 
 	pub fn view(&mut self) -> iced::Element<'_, Message> {
-		let mut column = Column::new()
-			.push(
-				Button::new(
-					&mut self.play_button,
-					Text::new(match self.playback_state {
-						PlaybackState::Stopped => "Play",
-						_ => "Stop",
-					}),
+		self.screen_wrapper.view(
+			Column::new()
+				.push(
+					Row::new()
+						.push(
+							Button::new(
+								&mut self.play_button,
+								Text::new(match self.playback_state {
+									PlaybackState::Stopped => "Play",
+									_ => "Stop",
+								}),
+							)
+							.on_press(match self.playback_state {
+								PlaybackState::Stopped => Message::Play,
+								_ => Message::Stop,
+							}),
+						)
+						.push({
+							let mut button = Button::new(
+								&mut self.play_drum_fill_button,
+								Text::new("Play drum fill"),
+							);
+							match self.playback_state {
+								PlaybackState::PlayingLoop(_) => {
+									button = button.on_press(Message::PlayDrumFill);
+								}
+								_ => {}
+							}
+							button
+						}),
 				)
-				.on_press(match self.playback_state {
-					PlaybackState::Stopped => Message::Play,
-					_ => Message::Stop,
+				.push(BeatDisplay {
+					beat: match self.playback_state {
+						PlaybackState::Stopped => None,
+						PlaybackState::PlayingLoop(beat) => Some(beat),
+						PlaybackState::QueueingFill(beat, _)
+						| PlaybackState::PlayingFill(beat, _) => Some(beat),
+					},
+					fill: match self.playback_state {
+						PlaybackState::QueueingFill(_, fill)
+						| PlaybackState::PlayingFill(_, fill) => Some(fill),
+						_ => None,
+					},
 				}),
-			)
-			.push({
-				let mut button =
-					Button::new(&mut self.play_drum_fill_button, Text::new("Play drum fill"));
-				match self.playback_state {
-					PlaybackState::PlayingLoop(_) => {
-						button = button.on_press(Message::PlayDrumFill);
-					}
-					_ => {}
-				}
-				button
-			});
-		match self.playback_state {
-			PlaybackState::PlayingLoop(beat) => {
-				column = column.push(Text::new(format!("Beat {}", beat.as_usize())));
-			}
-			PlaybackState::QueueingFill(beat, _) | PlaybackState::PlayingFill(beat, _) => {
-				column = column.push(Text::new(format!("Beat {}", beat.as_usize())));
-			}
-			_ => {}
-		}
-		column.into()
+		)
 	}
 }
