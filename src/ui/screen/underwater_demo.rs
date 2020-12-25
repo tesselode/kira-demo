@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use iced::{Align, Button, Column, Length, Text};
+use iced::{Align, Button, Column, HorizontalAlignment, Length, Row, Text};
 use kira::{
 	arrangement::{Arrangement, ArrangementId, LoopArrangementSettings},
 	instance::{InstanceSettings, StopInstanceSettings},
@@ -171,12 +171,15 @@ impl UnderwaterDemo {
 				Some(_) => "Stop",
 				None => "Play",
 			})
-			.size(24),
+			.width(Length::Fill)
+			.size(24)
+			.horizontal_alignment(HorizontalAlignment::Center),
 		)
 		.on_press(match self.sequence_id {
 			Some(_) => Message::Stop,
 			None => Message::Play,
 		})
+		.width(Length::Fill)
 		.style(AppStyles);
 
 		let underwater_button = Button::new(
@@ -185,20 +188,28 @@ impl UnderwaterDemo {
 				false => "Submerge",
 				true => "Resurface",
 			})
-			.size(24),
+			.width(Length::Fill)
+			.size(24)
+			.horizontal_alignment(HorizontalAlignment::Center),
 		)
 		.on_press(match self.underwater {
 			false => Message::Submerge,
 			true => Message::Resurface,
 		})
+		.width(Length::Fill)
 		.style(AppStyles);
 
 		self.screen_wrapper.view(
 			Column::new()
 				.spacing(16)
 				.align_items(Align::Center)
-				.push(play_button)
-				.push(underwater_button)
+				.push(
+					Row::new()
+						.max_width(300)
+						.spacing(16)
+						.push(play_button)
+						.push(underwater_button),
+				)
 				.push(
 					Column::new()
 						.width(Length::Fill)

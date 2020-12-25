@@ -3,7 +3,7 @@ mod beat_display;
 use std::error::Error;
 
 use beat_display::BeatDisplay;
-use iced::{Button, Column, Row, Text};
+use iced::{Align, Button, Column, HorizontalAlignment, Length, Row, Text};
 use kira::{
 	group::GroupId,
 	manager::{AudioManager, AudioManagerSettings},
@@ -13,7 +13,7 @@ use kira::{
 	AudioResult, Duration, MetronomeSettings, Tempo,
 };
 
-use crate::ui::common::screen_wrapper::ScreenWrapper;
+use crate::ui::{common::screen_wrapper::ScreenWrapper, style::AppStyles};
 
 const EXPLANATION_TEXT: &str = "This demo uses \
 a sequence to play a short drum sample repeatedly and \
@@ -287,36 +287,49 @@ impl DrumFillDemo {
 	}
 
 	pub fn view(&mut self) -> iced::Element<'_, Message> {
+		let play_button = Button::new(
+			&mut self.play_button,
+			Text::new(match self.playback_state {
+				PlaybackState::Stopped => "Play",
+				_ => "Stop",
+			})
+			.width(Length::Fill)
+			.size(24)
+			.horizontal_alignment(HorizontalAlignment::Center),
+		)
+		.on_press(match self.playback_state {
+			PlaybackState::Stopped => Message::Play,
+			_ => Message::Stop,
+		})
+		.width(Length::Fill)
+		.style(AppStyles);
+
+		let mut play_drum_fill_button = Button::new(
+			&mut self.play_drum_fill_button,
+			Text::new("Play drum fill")
+				.width(Length::Fill)
+				.size(24)
+				.horizontal_alignment(HorizontalAlignment::Center),
+		)
+		.width(Length::Fill)
+		.style(AppStyles);
+		match self.playback_state {
+			PlaybackState::PlayingLoop(_) => {
+				play_drum_fill_button = play_drum_fill_button.on_press(Message::PlayDrumFill);
+			}
+			_ => {}
+		}
+
 		self.screen_wrapper.view(
 			Column::new()
+				.spacing(16)
+				.align_items(Align::Center)
 				.push(
 					Row::new()
-						.push(
-							Button::new(
-								&mut self.play_button,
-								Text::new(match self.playback_state {
-									PlaybackState::Stopped => "Play",
-									_ => "Stop",
-								}),
-							)
-							.on_press(match self.playback_state {
-								PlaybackState::Stopped => Message::Play,
-								_ => Message::Stop,
-							}),
-						)
-						.push({
-							let mut button = Button::new(
-								&mut self.play_drum_fill_button,
-								Text::new("Play drum fill"),
-							);
-							match self.playback_state {
-								PlaybackState::PlayingLoop(_) => {
-									button = button.on_press(Message::PlayDrumFill);
-								}
-								_ => {}
-							}
-							button
-						}),
+						.max_width(300)
+						.spacing(16)
+						.push(play_button)
+						.push(play_drum_fill_button),
 				)
 				.push(BeatDisplay {
 					beat: match self.playback_state {
@@ -330,7 +343,13 @@ impl DrumFillDemo {
 						| PlaybackState::PlayingFill(_, fill) => Some(fill),
 						_ => None,
 					},
-				}),
+				})
+				.push(
+					Column::new()
+						.width(Length::Fill)
+						.max_width(600)
+						.push(Text::new(EXPLANATION_TEXT)),
+				),
 		)
 	}
 }
