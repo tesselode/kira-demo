@@ -13,7 +13,7 @@ categories = ["game-development", "multimedia::audio"]
 iced = {version = "0.2.0", features = ["tokio"]}
 iced_native = "0.3.0"
 iced_graphics = "0.1.0"
-kira = {path = "../kira/kira"}
+kira = "0.3.0"
 
 [profile.dev]
 opt-level = 1

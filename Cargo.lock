@@ -1553,7 +1553,9 @@ dependencies = [
 
 [[package]]
 name = "kira"
-version = "0.2.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3264b8f934aad2e93e2eb1f3d37f5788c10ab0998bf8d8aab09fb6201958c422"
 dependencies = [
  "claxon",
  "cpal",
