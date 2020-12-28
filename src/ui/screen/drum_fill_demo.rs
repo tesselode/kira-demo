@@ -3,7 +3,7 @@ use std::error::Error;
 use iced::{Align, Button, Column, Length, Row, Text};
 use kira::{
 	manager::{AudioManager, AudioManagerSettings},
-	sequence::{Sequence, SequenceId},
+	sequence::{EventReceiver, Sequence, SequenceInstanceId},
 	sound::Sound,
 	sound::SoundId,
 	Duration, MetronomeSettings, Tempo,
@@ -28,7 +28,7 @@ pub enum Message {
 	Stop,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
 pub enum AudioEvent {
 	StartLoop,
 	StartFill(usize),
@@ -55,13 +55,13 @@ impl PlaybackState {
 }
 
 pub struct DrumFillDemo {
-	audio_manager: AudioManager<AudioEvent>,
+	audio_manager: AudioManager,
 	loop_sound_id: SoundId,
 	fill_2b_sound_id: SoundId,
 	fill_3b_sound_id: SoundId,
 	fill_4b_sound_id: SoundId,
 	playback_state: PlaybackState,
-	sequence_ids: Vec<SequenceId>,
+	sequence_ids: Vec<(SequenceInstanceId, EventReceiver<AudioEvent>)>,
 	screen_wrapper: ScreenWrapper<Message>,
 	play_button: iced::button::State,
 	play_drum_fill_button: iced::button::State,
@@ -120,41 +120,43 @@ impl DrumFillDemo {
 	fn start_sequence(&mut self) -> Result<(), Box<dyn Error>> {
 		match self.playback_state {
 			PlaybackState::Stopped | PlaybackState::Looping(_) => {
-				let mut sequence = Sequence::new();
+				let mut sequence = Sequence::new(Default::default());
 				if let PlaybackState::Looping(beat) = self.playback_state {
-					let previous_sequence_id = *self.sequence_ids.last().unwrap();
+					let (previous_sequence_id, _) = *self.sequence_ids.last().unwrap();
 					match beat {
 						1 => {
 							self.playback_state = PlaybackState::QueueingFill(3);
 							sequence.wait_for_interval(1.0);
 							sequence.play(self.fill_3b_sound_id, Default::default());
-							sequence.emit_custom_event(AudioEvent::StartFill(3));
+							sequence.emit(AudioEvent::StartFill(3));
 						}
 						2 => {
 							self.playback_state = PlaybackState::QueueingFill(2);
 							sequence.wait_for_interval(1.0);
 							sequence.play(self.fill_2b_sound_id, Default::default());
-							sequence.emit_custom_event(AudioEvent::StartFill(2));
+							sequence.emit(AudioEvent::StartFill(2));
 						}
 						_ => {
 							self.playback_state = PlaybackState::QueueingFill(4);
 							sequence.wait_for_interval(4.0);
 							sequence.play(self.fill_4b_sound_id, Default::default());
-							sequence.emit_custom_event(AudioEvent::StartFill(4));
+							sequence.emit(AudioEvent::StartFill(4));
 						}
 					}
-					sequence.stop_sequence_and_instances(previous_sequence_id, Some(0.01.into()));
+					sequence.stop_sequence_and_instances(previous_sequence_id, Default::default());
 				}
 				sequence.wait_for_interval(4.0);
 				sequence.start_loop();
-				sequence.emit_custom_event(AudioEvent::StartLoop);
+				sequence.emit(AudioEvent::StartLoop);
 				sequence.play(self.loop_sound_id, Default::default());
 				for i in 1..=4 {
-					sequence.emit_custom_event(AudioEvent::Beat(i));
+					sequence.emit(AudioEvent::Beat(i));
 					sequence.wait(Duration::Beats(1.0));
 				}
-				self.sequence_ids
-					.push(self.audio_manager.start_sequence(sequence)?);
+				self.sequence_ids.push(
+					self.audio_manager
+						.start_sequence(sequence, Default::default())?,
+				);
 				if let PlaybackState::Stopped = self.playback_state {
 					self.audio_manager.start_metronome()?;
 				}
@@ -165,9 +167,9 @@ impl DrumFillDemo {
 	}
 
 	fn stop(&mut self) -> Result<(), Box<dyn Error>> {
-		for id in self.sequence_ids.drain(..) {
+		for (id, _) in self.sequence_ids.drain(..) {
 			self.audio_manager
-				.stop_sequence_and_instances(id, Some(0.01.into()))?;
+				.stop_sequence_and_instances(id, Default::default())?;
 		}
 		self.audio_manager.stop_metronome()?;
 		self.playback_state = PlaybackState::Stopped;
@@ -175,22 +177,21 @@ impl DrumFillDemo {
 	}
 
 	pub fn check_for_events(&mut self) -> Result<(), Box<dyn Error>> {
-		while let Some(event) = self.audio_manager.pop_event() {
-			match event {
-				kira::Event::Custom(event) => match event {
+		for (_, event_channel) in &mut self.sequence_ids {
+			while let Some(event) = event_channel.pop() {
+				match event {
 					AudioEvent::StartLoop => {
 						self.playback_state = PlaybackState::Looping(1);
 					}
 					AudioEvent::StartFill(beats) => {
-						self.playback_state = PlaybackState::PlayingFill(beats);
+						self.playback_state = PlaybackState::PlayingFill(*beats);
 					}
 					AudioEvent::Beat(beat) => {
 						if let PlaybackState::Looping(_) = self.playback_state {
-							self.playback_state = PlaybackState::Looping(beat);
+							self.playback_state = PlaybackState::Looping(*beat);
 						}
 					}
-				},
-				_ => {}
+				}
 			}
 		}
 		Ok(())

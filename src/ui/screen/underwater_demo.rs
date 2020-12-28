@@ -2,7 +2,7 @@ use std::error::Error;
 
 use iced::{Align, Button, Column, Length, Text};
 use kira::{
-	arrangement::{Arrangement, ArrangementId},
+	arrangement::{Arrangement, ArrangementId, LoopArrangementSettings},
 	instance::InstanceSettings,
 	manager::AudioManager,
 	mixer::effect::filter::{Filter, FilterSettings},
@@ -10,7 +10,7 @@ use kira::{
 	parameter::Mapping,
 	parameter::ParameterId,
 	playable::PlayableSettings,
-	sequence::{Sequence, SequenceId},
+	sequence::{Sequence, SequenceInstanceId},
 	sound::Sound,
 	Tempo, Value,
 };
@@ -39,7 +39,7 @@ pub struct UnderwaterDemo {
 	bass_loop_id: ArrangementId,
 	pad_loop_id: ArrangementId,
 	lead_loop_id: ArrangementId,
-	sequence_id: Option<SequenceId>,
+	sequence_id: Option<SequenceInstanceId>,
 	underwater_parameter_id: ParameterId,
 	underwater: bool,
 	screen_wrapper: ScreenWrapper<Message>,
@@ -69,28 +69,33 @@ impl UnderwaterDemo {
 			PlayableSettings::new().semantic_duration(Tempo(85.0).beats_to_seconds(16.0));
 		let drums_sound_id = audio_manager.add_sound(Sound::from_file(
 			assets_base_dir.join("drums.ogg"),
-			sound_settings,
+			sound_settings.clone(),
 		)?)?;
-		let drums_loop_id = audio_manager.add_arrangement(Arrangement::new_loop(drums_sound_id))?;
+		let drums_loop_id = audio_manager
+			.add_arrangement(Arrangement::new_loop(drums_sound_id, Default::default()))?;
 		let bass_sound_id = audio_manager.add_sound(Sound::from_file(
 			assets_base_dir.join("bass.ogg"),
-			sound_settings,
+			sound_settings.clone(),
 		)?)?;
-		let bass_loop_id = audio_manager.add_arrangement(Arrangement::new_loop(bass_sound_id))?;
+		let bass_loop_id = audio_manager
+			.add_arrangement(Arrangement::new_loop(bass_sound_id, Default::default()))?;
 		let pad_sound_id = audio_manager.add_sound(Sound::from_file(
 			assets_base_dir.join("pad.ogg"),
-			sound_settings,
+			sound_settings.clone(),
 		)?)?;
-		let pad_loop_id = audio_manager.add_arrangement(Arrangement::new_loop(pad_sound_id))?;
+		let pad_loop_id = audio_manager
+			.add_arrangement(Arrangement::new_loop(pad_sound_id, Default::default()))?;
 		let lead_sound_id = audio_manager.add_sound(Sound::from_file(
 			assets_base_dir.join("lead.ogg"),
 			sound_settings,
 		)?)?;
-		let lead_loop_id = audio_manager.add_arrangement({
-			let mut arrangement = Arrangement::new_loop(lead_sound_id);
-			arrangement.settings.default_track = TrackIndex::Sub(lead_track_id);
-			arrangement
-		})?;
+		let lead_loop_id = audio_manager.add_arrangement(Arrangement::new_loop(
+			lead_sound_id,
+			LoopArrangementSettings {
+				default_track: TrackIndex::Sub(lead_track_id),
+				..Default::default()
+			},
+		))?;
 		Ok(Self {
 			audio_manager,
 			drums_loop_id,
@@ -109,32 +114,39 @@ impl UnderwaterDemo {
 	pub fn update(&mut self, message: Message) -> Result<(), Box<dyn Error>> {
 		match message {
 			Message::Play => {
-				self.sequence_id = Some(self.audio_manager.start_sequence({
-					let mut sequence = Sequence::new();
-					sequence.play(
-						self.drums_loop_id,
-						InstanceSettings::new().volume(Value::Parameter(
-							self.underwater_parameter_id,
-							Mapping {
-								input_range: (0.0, 1.0),
-								output_range: (1.0, 0.0),
-								..Default::default()
+				self.sequence_id = Some(
+					self.audio_manager
+						.start_sequence::<()>(
+							{
+								let mut sequence = Sequence::new(Default::default());
+								sequence.play(
+									self.drums_loop_id,
+									InstanceSettings::new().volume(Value::Parameter(
+										self.underwater_parameter_id,
+										Mapping {
+											input_range: (0.0, 1.0),
+											output_range: (1.0, 0.0),
+											..Default::default()
+										},
+									)),
+								);
+								sequence.play(self.bass_loop_id, Default::default());
+								sequence.play(
+									self.pad_loop_id,
+									InstanceSettings::new().volume(self.underwater_parameter_id),
+								);
+								sequence.play(self.lead_loop_id, Default::default());
+								sequence
 							},
-						)),
-					);
-					sequence.play(self.bass_loop_id, Default::default());
-					sequence.play(
-						self.pad_loop_id,
-						InstanceSettings::new().volume(self.underwater_parameter_id),
-					);
-					sequence.play(self.lead_loop_id, Default::default());
-					sequence
-				})?)
+							Default::default(),
+						)?
+						.0,
+				)
 			}
 			Message::Stop => {
 				if let Some(sequence_id) = self.sequence_id {
 					self.audio_manager
-						.stop_sequence_and_instances(sequence_id, Some(0.1.into()))?;
+						.stop_sequence_and_instances(sequence_id, Default::default())?;
 					self.sequence_id = None;
 				}
 			}
