@@ -41,14 +41,6 @@ pub enum DrumFill {
 }
 
 impl DrumFill {
-	fn length(self) -> usize {
-		match self {
-			DrumFill::TwoBeat => 2,
-			DrumFill::ThreeBeat => 3,
-			DrumFill::FourBeat => 4,
-		}
-	}
-
 	fn start_interval(self) -> f64 {
 		match self {
 			DrumFill::FourBeat => 4.0,

@@ -50,17 +50,17 @@ impl<Message, B: Backend> Widget<Message, Renderer<B>> for BeatDisplay {
 		Length::Shrink
 	}
 
-	fn layout(&self, renderer: &Renderer<B>, limits: &Limits) -> Node {
+	fn layout(&self, _renderer: &Renderer<B>, _limits: &Limits) -> Node {
 		Node::new(DEFAULT_SIZE)
 	}
 
 	fn draw(
 		&self,
-		renderer: &mut Renderer<B>,
-		defaults: &Defaults,
+		_renderer: &mut Renderer<B>,
+		_defaults: &Defaults,
 		layout: Layout<'_>,
-		cursor_position: Point,
-		viewport: &Rectangle,
+		_cursor_position: Point,
+		_viewport: &Rectangle,
 	) -> (Primitive, Interaction) {
 		let bounds = layout.bounds();
 		let circle_radius = bounds.height / 2.0;
